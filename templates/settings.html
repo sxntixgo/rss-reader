@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Settings — Better Read{% endblock %}
+{% block content %}
+<h2>Preference Profile</h2>
+<div id="preferences-panel"
+     hx-get="/preferences"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+  <p class="loading">Loading profile…</p>
+</div>
+
+<h2 style="margin-top:32px">Hidden Articles</h2>
+<p class="hint">
+  Re-score every article currently marked as hidden against your current preference profile.
+  Use this after editing the profile to rescue articles that were filtered out under the old criteria.
+</p>
+<button hx-post="/rescore-hidden"
+        hx-swap="none"
+        hx-confirm="Re-score all hidden articles against the current preference profile?">
+  Re-score hidden articles
+</button>
+
+<h2 style="margin-top:32px">Pipeline Status</h2>
+<div id="status-panel"
+     hx-get="/status"
+     hx-trigger="load, every 30s"
+     hx-swap="innerHTML">
+  <p class="loading">Loading status…</p>
+</div>
+
+<h2 style="margin-top:32px">Ollama Models</h2>
+<div id="models-panel"
+     hx-get="/settings/models"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+  <p class="loading">Loading models…</p>
+</div>
+
+<h2 style="margin-top:32px">Reader Embeds</h2>
+<div id="embeds-panel"
+     hx-get="/settings/embeds"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+  <p class="loading">Loading…</p>
+</div>
+{% endblock %}

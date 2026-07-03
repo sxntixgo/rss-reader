@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="theme-color" content="#1a1a1a">
+  <link rel="manifest" href="/static/manifest.json">
+  <link rel="stylesheet" href="/static/style.css">
+  <link id="favicon" rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231a1a1a'/%3E%3Ctext x='16' y='22' font-family='system-ui,sans-serif' font-size='18' font-weight='700' fill='%23f0f0f0' text-anchor='middle'%3EB%3C/text%3E%3C/svg%3E">
+  <script src="https://unpkg.com/htmx.org@1.9.12" crossorigin="anonymous"></script>
+  <title>{% block title %}Better Read{% endblock %}</title>
+  <script>
+    (function() {
+      var stored = localStorage.getItem('theme');
+      var t = stored || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.dataset.theme = t;
+    })();
+  </script>
+</head>
+<body>
+  <div class="site-layout">
+    <button id="sidebar-drawer-toggle" class="drawer-toggle" aria-label="Open menu" onclick="toggleSidebarDrawer()">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <div id="sidebar-scrim" class="drawer-scrim" onclick="toggleSidebarDrawer(false)"></div>
+    <aside class="sidebar" id="sidebar">
+      <a class="sidebar-brand" href="/">Better Read</a>
+      <div id="sidebar-feeds"
+           hx-get="/sidebar/feeds"
+           hx-trigger="load, sidebar-refresh from:body"
+           hx-swap="innerHTML">
+        <p class="sidebar-loading">Loading feeds…</p>
+      </div>
+      <div class="sidebar-footer">
+        <a href="/settings" class="btn-icon" title="Settings" aria-label="Settings">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"
+              d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 0 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 0 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1Z"/>
+          </svg>
+        </a>
+        <button id="theme-toggle" class="btn-icon" aria-label="Toggle dark mode" title="Toggle dark mode"></button>
+      </div>
+    </aside>
+    <div class="site-content">
+      <header class="site-header">
+        <div class="header-actions">
+          {% block header_actions %}{% endblock %}
+        </div>
+      </header>
+      <main class="site-main">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+
+  <dialog id="reader-modal" aria-modal="true">
+    <nav class="modal-nav">
+      <div class="modal-nav-left">
+        <button class="btn-icon" id="modal-close" title="Close (Esc)">← Back</button>
+      </div>
+      <div class="modal-nav-right">
+        <a id="modal-open-link" class="btn-external" href="#" target="_blank" rel="noopener noreferrer">↗ Open in browser</a>
+      </div>
+    </nav>
+    <div class="modal-body" id="modal-body"></div>
+  </dialog>
+
+  <script>
+    // Dark mode toggle
+    var root = document.documentElement;
+    var toggleBtn = document.getElementById('theme-toggle');
+    var SUN_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="1.8"/><path stroke="currentColor" stroke-width="1.8" stroke-linecap="round" d="M12 2v2 M12 20v2 M2 12h2 M20 12h2 M4.9 4.9l1.4 1.4 M17.7 17.7l1.4 1.4 M4.9 19.1l1.4-1.4 M17.7 6.3l1.4-1.4"/></svg>';
+    var MOON_SVG = '<svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round" d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>';
+
+    function isDark() {
+      if (root.dataset.theme) return root.dataset.theme === 'dark';
+      return matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    function updateToggle() { toggleBtn.innerHTML = isDark() ? SUN_SVG : MOON_SVG; }
+    updateToggle();
+
+    toggleBtn.addEventListener('click', function() {
+      var next = isDark() ? 'light' : 'dark';
+      root.dataset.theme = next;
+      localStorage.setItem('theme', next);
+      updateToggle();
+      updateBadge();  // redraw favicon to match theme
+    });
+
+    // ── Favicon badge with unread count ──
+    // Draws a 32×32 canvas: rounded brand square + "B" mark, plus a red badge
+    // circle in the top-right when count > 0. Replaces #favicon's href so the
+    // browser tab updates. Also feeds setAppBadge for installed PWAs.
+    function drawFavicon(unread) {
+      var link = document.getElementById('favicon');
+      if (!link) return;
+      var c = document.createElement('canvas');
+      c.width = 32; c.height = 32;
+      var ctx = c.getContext('2d');
+      var fg = isDark() ? '#f0f0f0' : '#1a1a1a';
+      var bg = isDark() ? '#1a1a1a' : '#f0f0f0';
+      ctx.fillStyle = fg;
+      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(0, 0, 32, 32, 6); ctx.fill(); }
+      else { ctx.fillRect(0, 0, 32, 32); }
+      ctx.fillStyle = bg;
+      ctx.font = 'bold 20px system-ui, -apple-system, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('B', 16, 17);
+      if (unread > 0) {
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath();
+        ctx.arc(24, 8, 8, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold ' + (unread > 99 ? 8 : 11) + 'px system-ui, sans-serif';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(unread > 99 ? '99+' : String(unread), 24, 9);
+      }
+      link.type = 'image/png';
+      link.href = c.toDataURL('image/png');
+    }
+    function updateBadge() {
+      fetch('/count').then(function(r) { return r.text(); }).then(function(t) {
+        var n = parseInt(t, 10) || 0;
+        drawFavicon(n);
+        if ('setAppBadge' in navigator) {
+          if (n > 0) navigator.setAppBadge(n).catch(function() {});
+          else navigator.clearAppBadge().catch(function() {});
+        }
+      }).catch(function() {});
+    }
+    window.updateBadge = updateBadge;
+    updateBadge();
+
+    // Default sidebar-feed handler for non-index pages (settings, manage-feeds).
+    // Navigates to / with the picked feed/mode encoded as query params.
+    // index.html overrides this with an in-page (SPA-style) implementation.
+    if (typeof window.selectFeed !== 'function') {
+      window.selectFeed = function(id, hidden, saved) {
+        var p = new URLSearchParams();
+        if (id) p.set('feed', id);
+        if (hidden) p.set('hidden', '1');
+        if (saved) p.set('saved', '1');
+        var qs = p.toString();
+        window.location.href = '/' + (qs ? '?' + qs : '');
+      };
+    }
+    if (typeof window.toggleSidebarGroup !== 'function') {
+      window.toggleSidebarGroup = function(name) {
+        var g = document.querySelector('.sidebar-group[data-group="' + name + '"]');
+        if (!g) return;
+        var collapsed = !g.classList.contains('collapsed');
+        g.classList.toggle('collapsed', collapsed);
+        try { localStorage.setItem('sidebar-collapsed-' + name, collapsed ? '1' : '0'); } catch (_) {}
+      };
+    }
+
+    // Sidebar drawer (mobile)
+    function toggleSidebarDrawer(force) {
+      var sb = document.getElementById('sidebar');
+      var scrim = document.getElementById('sidebar-scrim');
+      if (!sb) return;
+      var open = (force === undefined) ? !sb.classList.contains('open') : force;
+      sb.classList.toggle('open', open);
+      scrim.classList.toggle('visible', open);
+    }
+    // Auto-close drawer when a sidebar feed is picked.
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.sidebar-feed')) toggleSidebarDrawer(false);
+    });
+
+    // Reader modal
+    var modal = document.getElementById('reader-modal');
+    var modalBody = document.getElementById('modal-body');
+
+    document.getElementById('modal-close').addEventListener('click', function() { modal.close(); });
+    modal.addEventListener('click', function(e) { if (e.target === modal) modal.close(); });
+
+    var modalOpenLink = document.getElementById('modal-open-link');
+
+    // Lock background scroll while the reader modal is open so scrolling inside
+    // the article doesn't bleed through to the page underneath (esp. on iOS).
+    var scrollLockY = 0;
+    function lockBodyScroll() {
+      scrollLockY = window.scrollY || 0;
+      document.body.style.position = 'fixed';
+      document.body.style.top = '-' + scrollLockY + 'px';
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.body.style.width = '100%';
+    }
+    function unlockBodyScroll() {
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.body.style.width = '';
+      window.scrollTo(0, scrollLockY);
+    }
+    modal.addEventListener('close', unlockBodyScroll);
+
+    // Lazy-load Twitter / Instagram embed scripts the first time an article
+    // contains a matching blockquote. Each script gets injected at most once;
+    // the official scripts auto-hydrate matching nodes when added to the DOM.
+    var _embedLoaders = {
+      twitter: { src: 'https://platform.twitter.com/widgets.js', loaded: false },
+      instagram: { src: 'https://www.instagram.com/embed.js', loaded: false }
+    };
+    function _ensureEmbedScript(platform) {
+      var spec = _embedLoaders[platform];
+      if (!spec || spec.loaded) return;
+      spec.loaded = true;
+      var s = document.createElement('script');
+      s.src = spec.src;
+      s.async = true;
+      document.head.appendChild(s);
+    }
+    function hydrateEmbeds(root) {
+      var nodes = root.querySelectorAll('[data-embed-platform]');
+      if (!nodes.length) return;
+      var seen = {};
+      nodes.forEach(function(n) { seen[n.dataset.embedPlatform] = true; });
+      if (seen.twitter) {
+        _ensureEmbedScript('twitter');
+        if (window.twttr && twttr.widgets && twttr.widgets.load) twttr.widgets.load(root);
+      }
+      if (seen.instagram) {
+        _ensureEmbedScript('instagram');
+        if (window.instgrm && instgrm.Embeds && instgrm.Embeds.process) instgrm.Embeds.process();
+      }
+    }
+
+    function openReader(row) {
+      modalOpenLink.href = row.dataset.url;
+      modalBody.innerHTML = '<p style="color:var(--muted);font-size:13px">Loading\u2026</p>';
+      lockBodyScroll();
+      modal.showModal();
+      row.classList.add('read');
+      fetch('/article/' + row.dataset.articleId + '/content')
+        .then(function(r) { return r.text(); })
+        .then(function(html) {
+          modalBody.innerHTML = html;
+          hydrateEmbeds(modalBody);
+        });
+    }
+
+    document.addEventListener('click', function(e) {
+      if (e.target.closest('.btn-icon') || e.target.closest('.btn-external')) return;
+      var row = e.target.closest('.article-row');
+      if (!row) return;
+      // If a swipe just completed on this row, the synthetic click should NOT
+      // open the modal. The swipe handler stamps window.__lastSwipeAt on release.
+      if (Date.now() - (window.__lastSwipeAt || 0) < 500) return;
+      openReader(row);
+    });
+
+    // Touch gestures on the reader modal: swipe-down to dismiss + swipe-right
+    // anywhere in the modal to "go back" (closes). The edge-only variant fought
+    // the OS-level edge-back swipe on mobile browsers, so we accept the gesture
+    // starting anywhere inside the modal.
+    if ('ontouchstart' in window || matchMedia('(pointer: coarse)').matches) {
+      var dStart = null;
+      modal.addEventListener('touchstart', function(e) {
+        if (!modal.open) return;
+        var t = e.touches[0];
+        dStart = { x: t.clientX, y: t.clientY };
+      }, { passive: true });
+      modal.addEventListener('touchend', function(e) {
+        if (!dStart) return;
+        var t = e.changedTouches[0];
+        var dx = t.clientX - dStart.x;
+        var dy = t.clientY - dStart.y;
+        var adx = Math.abs(dx);
+        var ady = Math.abs(dy);
+        // Swipe down to close.
+        if (dy > 80 && adx < 60) modal.close();
+        // Swipe right to close (≥80px horizontal, mostly horizontal).
+        else if (dx > 80 && ady < adx * 0.6) modal.close();
+        dStart = null;
+      }, { passive: true });
+    }
+  </script>
+
+  {% block scripts %}{% endblock %}
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/static/sw.js');
+    }
+  </script>
+</body>
+</html>

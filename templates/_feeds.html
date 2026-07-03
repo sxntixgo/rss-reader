@@ -1,0 +1,61 @@
+{% if opml_added is defined %}
+  <p class="opml-status">Imported {{ opml_added }} new feed{{ '' if opml_added == 1 else 's' }}.</p>
+{% endif %}
+{% if feeds %}
+  <ul class="feed-list">
+    {% for feed in feeds %}
+    <li class="feed-item {% if feed.paused %}paused{% endif %}">
+      <span class="feed-url">
+        {{ feed.title or feed.url }}
+        {% if feed.paused %}<span class="feed-badge feed-badge-paused">paused</span>{% endif %}
+        {% if (feed.consecutive_failures or 0) > 0 and not feed.paused %}
+          <span class="feed-badge feed-badge-warn">{{ feed.consecutive_failures }} fail{{ '' if feed.consecutive_failures == 1 else 's' }}</span>
+        {% endif %}
+      </span>
+      <small class="feed-meta">
+        {{ feed.url }}
+        {% if feed.last_success_at %} · ok {{ feed.last_success_at[:16].replace('T', ' ') }}
+        {% elif feed.last_polled_at %} · last attempt {{ feed.last_polled_at[:16].replace('T', ' ') }}
+        {% endif %}
+        {% if feed.last_error %}<br><span class="feed-error">{{ feed.last_error }}</span>{% endif %}
+      </small>
+      <div class="feed-actions">
+        <form hx-post="/feeds/{{ feed.id }}/threshold"
+              hx-target="#feed-list" hx-swap="innerHTML"
+              class="feed-threshold-form" title="Per-feed score threshold (0.0-1.0). Empty uses the global default.">
+          <label>threshold
+            <input type="number" name="score_threshold" min="0" max="1" step="0.05"
+                   value="{% if feed.score_threshold is not none %}{{ feed.score_threshold }}{% endif %}"
+                   placeholder="default">
+          </label>
+          <button type="submit" class="btn-secondary">save</button>
+        </form>
+        <form hx-post="/feeds/{{ feed.id }}/tags"
+              hx-target="#feed-list" hx-swap="innerHTML"
+              class="feed-tags-form" title="Comma-separated tags. Used to group this feed in the sidebar.">
+          <label>tags
+            <input type="text" name="tags" value="{{ feed.tags or '' }}"
+                   placeholder="e.g. tech,news" autocomplete="off">
+          </label>
+          <button type="submit" class="btn-secondary">save</button>
+        </form>
+        {% if feed.paused %}
+          <button hx-post="/feeds/{{ feed.id }}/resume"
+                  hx-target="#feed-list" hx-swap="innerHTML">Resume</button>
+        {% else %}
+          <button hx-post="/feeds/{{ feed.id }}/pause"
+                  hx-target="#feed-list" hx-swap="innerHTML">Pause</button>
+        {% endif %}
+        <button
+          hx-delete="/feeds/{{ feed.id }}"
+          hx-target="#feed-list"
+          hx-swap="innerHTML"
+          hx-confirm="Remove this feed and all its articles?"
+          class="btn-remove">Remove</button>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="empty">No feeds yet. Add one above.</p>
+{% endif %}

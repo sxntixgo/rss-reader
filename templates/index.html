@@ -1,0 +1,334 @@
+{% extends "base.html" %}
+{% block title %}Better Read{% endblock %}
+{% block header_actions %}
+<button id="poll-btn" class="btn-loadable" hx-post="/poll" hx-swap="none">
+  <span class="btn-label">Refresh</span>
+  <span class="btn-spinner" aria-hidden="true"></span>
+</button>
+<button id="dismiss-all-btn" onclick="dismissAll()" title="Mark every shown article as read and clear the list">
+  Dismiss all
+</button>
+<input id="search" class="search-input" type="search" placeholder="Filter articles…" autocomplete="off">
+<div class="sort-toggle">
+  <button id="sort-score" class="sort-btn" onclick="setSort('score')">Score</button>
+  <button id="sort-date" class="sort-btn active" onclick="setSort('date')">Date</button>
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="article-list" hx-swap="innerHTML">
+  <p class="loading">Loading articles…</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // POST /poll returns immediately (work runs in a background thread). To keep
+  // the indicator honest, swap the Refresh button into its loading state on
+  // click and only restore it when /status reports last_pipeline_run_at has
+  // advanced (or we time out / error).
+  function fetchPipelineStamp() {
+    return fetch('/status', { headers: { Accept: 'application/json' } })
+      .then(function(r) { return r.json(); })
+      .then(function(j) { return j.last_pipeline_run_at || ''; })
+      .catch(function() { return ''; });
+  }
+
+  var pollBtn = document.getElementById('poll-btn');
+  function setPolling(active) {
+    pollBtn.classList.toggle('is-loading', active);
+    pollBtn.disabled = active;
+  }
+
+  document.body.addEventListener('htmx:afterRequest', function(e) {
+    if (e.detail.elt.id !== 'poll-btn') return;
+    if (!e.detail.successful) { setPolling(false); return; }
+    setPolling(true);
+    fetchPipelineStamp().then(function(before) {
+      var deadline = Date.now() + 5 * 60 * 1000;
+      var iv = setInterval(function() {
+        if (Date.now() > deadline) {
+          clearInterval(iv);
+          setPolling(false);
+          return;
+        }
+        fetchPipelineStamp().then(function(now) {
+          if (now && now !== before) {
+            clearInterval(iv);
+            setPolling(false);
+            htmx.trigger(document.getElementById('article-list'), 'reload');
+          }
+        });
+      }, 3000);
+    });
+  });
+
+  // Server-side full-text search via FTS5. Debounced; empty query reverts to list.
+  var searchDebounce;
+  document.getElementById('search').addEventListener('input', function() {
+    var q = this.value.trim();
+    clearTimeout(searchDebounce);
+    searchDebounce = setTimeout(function() {
+      searchQuery = q;
+      refreshList();
+    }, 250);
+  });
+
+  // Keyboard navigation
+  var focused = -1;
+
+  function getRows() {
+    return Array.from(document.querySelectorAll('.article-row')).filter(function(r) {
+      return r.style.display !== 'none';
+    });
+  }
+
+  function setFocus(idx) {
+    var rows = getRows();
+    if (!rows.length) return;
+    if (focused >= 0 && focused < rows.length) rows[focused].classList.remove('focused');
+    focused = Math.max(0, Math.min(idx, rows.length - 1));
+    rows[focused].classList.add('focused');
+    rows[focused].scrollIntoView({ block: 'nearest' });
+  }
+
+  document.addEventListener('keydown', function(e) {
+    if (document.getElementById('reader-modal').open) return;
+    if (e.target.tagName === 'INPUT') return;
+    var rows = getRows();
+    if (!rows.length) return;
+    switch (e.key) {
+      case 'j': e.preventDefault(); setFocus(focused < 0 ? 0 : focused + 1); break;
+      case 'k': e.preventDefault(); setFocus(focused < 0 ? 0 : focused - 1); break;
+      case 'l': if (focused >= 0) rows[focused].querySelector('.btn-like')?.click(); break;
+      case 'o':
+        if (focused >= 0) {
+          var url = rows[focused].dataset.url;
+          if (url) window.open(url, '_blank', 'noopener,noreferrer');
+        }
+        break;
+      case 'r': if (focused >= 0) rows[focused].click(); break;
+    }
+  });
+
+  document.getElementById('article-list').addEventListener('htmx:afterSwap', function() {
+    focused = -1;
+  });
+
+  var currentSort = 'date';
+  var _qp = new URLSearchParams(window.location.search);
+  var showHidden = _qp.get('hidden') === '1';
+  var showSaved = _qp.get('saved') === '1';
+  var currentFeed = _qp.get('feed') || '';
+  var searchQuery = '';
+  function buildQs() {
+    if (searchQuery) return '/search?q=' + encodeURIComponent(searchQuery);
+    return '/articles?sort=' + currentSort
+      + (showHidden ? '&hidden=1' : '')
+      + (showSaved ? '&saved=1' : '')
+      + (currentFeed ? '&feed=' + encodeURIComponent(currentFeed) : '');
+  }
+  function refreshList() {
+    var list = document.getElementById('article-list');
+    var qs = buildQs();
+    list.setAttribute('hx-get', qs);
+    htmx.ajax('GET', qs, { target: '#article-list', swap: 'innerHTML' });
+  }
+  function setSort(sort) {
+    currentSort = sort;
+    document.getElementById('sort-score').classList.toggle('active', sort === 'score');
+    document.getElementById('sort-date').classList.toggle('active', sort === 'date');
+    refreshList();
+  }
+  function applySidebarActive() {
+    var mode = showSaved ? 'saved' : (showHidden ? 'hidden' : 'all');
+    document.querySelectorAll('.sidebar-feed').forEach(function(b) {
+      var btnMode = b.dataset.mode || (b.dataset.hidden === '1' ? 'hidden' : 'all');
+      var match = b.dataset.feedId === currentFeed && btnMode === mode;
+      b.classList.toggle('active', match);
+    });
+  }
+  function applySidebarCollapseState() {
+    document.querySelectorAll('.sidebar-group').forEach(function(g) {
+      var key = 'sidebar-collapsed-' + g.dataset.group;
+      var collapsed = localStorage.getItem(key) === '1';
+      g.classList.toggle('collapsed', collapsed);
+    });
+  }
+  function toggleSidebarGroup(name) {
+    var g = document.querySelector('.sidebar-group[data-group="' + name + '"]');
+    if (!g) return;
+    var collapsed = !g.classList.contains('collapsed');
+    g.classList.toggle('collapsed', collapsed);
+    localStorage.setItem('sidebar-collapsed-' + name, collapsed ? '1' : '0');
+  }
+  function selectFeed(id, hidden, saved) {
+    currentFeed = id;
+    showHidden = !!hidden;
+    showSaved = !!saved;
+    searchQuery = '';
+    var s = document.getElementById('search');
+    if (s) s.value = '';
+    applySidebarActive();
+    refreshList();
+  }
+  function dismissAll() {
+    var label = currentFeed ? 'all articles in this feed' : 'all articles in the list';
+    if (!confirm('Dismiss ' + label + '?')) return;
+    document.querySelectorAll('.article-row').forEach(function(r) { r.classList.add('leaving'); });
+    var qs = currentFeed ? '?feed=' + encodeURIComponent(currentFeed) : '';
+    fetch('/dismiss-all' + qs, { method: 'POST' })
+      .then(function() {
+        setTimeout(function() {
+          refreshList();
+          htmx.trigger(document.body, 'sidebar-refresh');
+        }, 180);
+      });
+  }
+  // Back-compat for code paths that still call setFeed/toggleHidden.
+  function setFeed(id) { selectFeed(id, showHidden, showSaved); }
+  function toggleHidden() { selectFeed(currentFeed, !showHidden, false); }
+  // Initial load
+  refreshList();
+  // Re-apply state after sidebar HTMX refresh.
+  document.body.addEventListener('htmx:afterSwap', function(e) {
+    if (e.detail.target && e.detail.target.id === 'sidebar-feeds') {
+      applySidebarCollapseState();
+      applySidebarActive();
+    }
+  });
+  // Refresh sidebar counts after any vote/poll/list-reload.
+  document.body.addEventListener('htmx:afterRequest', function(e) {
+    var url = (e.detail.requestConfig || {}).path || '';
+    if (url.indexOf('/sidebar/') === 0) return;
+    if (/\/(vote|articles|poll|rescore-hidden|article\/.+\/content)/.test(url)) {
+      htmx.trigger(document.body, 'sidebar-refresh');
+    }
+  });
+
+  // Refresh favicon badge after any state-changing request. The drawing logic
+  // and initial render live in base.html so /settings and /manage-feeds also
+  // get a properly-rendered favicon.
+  document.body.addEventListener('htmx:afterRequest', function(e) {
+    var url = (e.detail.requestConfig || {}).path || '';
+    if (/\/(vote|articles|poll|article\/.+\/(dismiss|content))/.test(url)) {
+      if (typeof window.updateBadge === 'function') window.updateBadge();
+    }
+  });
+
+  // ── Touch gestures: swipe-right=like, swipe-left=dismiss on .article-row ──
+  if ('ontouchstart' in window || matchMedia('(pointer: coarse)').matches) {
+    var swipe = null;  // { row, x0, y0, dragging }
+
+    function clearSwipe(animate) {
+      if (!swipe || !swipe.row) { swipe = null; return; }
+      var r = swipe.row;
+      r.classList.remove('swiping', 'swipe-like-active', 'swipe-dismiss-active');
+      if (animate) {
+        r.style.transition = 'transform 0.2s ease';
+        r.style.transform = '';
+        setTimeout(function() { r.style.transition = ''; }, 220);
+      } else {
+        r.style.transform = '';
+      }
+      swipe = null;
+    }
+
+    document.addEventListener('touchstart', function(e) {
+      var row = e.target.closest('.article-row');
+      if (!row) return;
+      if (e.target.closest('button, a')) return;  // let inner controls handle
+      var t = e.touches[0];
+      swipe = { row: row, x0: t.clientX, y0: t.clientY, dragging: false };
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function(e) {
+      if (!swipe) return;
+      var t = e.touches[0];
+      var dx = t.clientX - swipe.x0;
+      var dy = t.clientY - swipe.y0;
+      if (!swipe.dragging) {
+        if (Math.abs(dy) > Math.abs(dx)) { swipe = null; return; }  // vertical scroll wins
+        if (Math.abs(dx) < 8) return;
+        swipe.dragging = true;
+        swipe.row.classList.add('swiping');
+      }
+      swipe.row.style.transform = 'translateX(' + dx + 'px)';
+      var ratio = Math.abs(dx) / swipe.row.offsetWidth;
+      swipe.row.classList.toggle('swipe-like-active', dx > 0 && ratio > 0.4);
+      swipe.row.classList.toggle('swipe-dismiss-active', dx < 0 && ratio > 0.4);
+    }, { passive: true });
+
+    document.addEventListener('touchend', function(e) {
+      if (!swipe || !swipe.dragging) { swipe = null; return; }
+      // Stamp so the synthetic click that follows touchend doesn't open the modal.
+      window.__lastSwipeAt = Date.now();
+      var t = e.changedTouches[0];
+      var dx = t.clientX - swipe.x0;
+      var width = swipe.row.offsetWidth;
+      var ratio = Math.abs(dx) / width;
+      var row = swipe.row;
+      var id = row.dataset.articleId;
+      if (ratio > 0.4 && id) {
+        if (navigator.vibrate) navigator.vibrate(10);
+        var url = dx > 0 ? '/vote/' + id + '/1' : '/article/' + id + '/dismiss';
+        row.style.transition = 'transform 0.2s ease, opacity 0.2s';
+        row.style.transform = 'translateX(' + (dx > 0 ? width : -width) + 'px)';
+        row.style.opacity = '0';
+        fetch(url, { method: 'POST' }).then(function() {
+          setTimeout(function() {
+            refreshList();
+            if (typeof htmx !== 'undefined') htmx.trigger(document.body, 'sidebar-refresh');
+            if (typeof updateBadge === 'function') updateBadge();
+          }, 180);
+        });
+        swipe = null;
+      } else {
+        clearSwipe(true);
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchcancel', function() { clearSwipe(true); }, { passive: true });
+
+    // ── Pull-to-refresh on article list ──
+    var pull = null, pullInd = null;
+    function ensurePullInd() {
+      if (pullInd) return pullInd;
+      pullInd = document.createElement('div');
+      pullInd.className = 'pull-indicator';
+      var list = document.getElementById('article-list');
+      list.parentNode.insertBefore(pullInd, list);
+      return pullInd;
+    }
+    document.addEventListener('touchstart', function(e) {
+      if (window.scrollY > 0) return;
+      if (e.target.closest('.article-row, .modal-body, .sidebar')) return;
+      pull = { y0: e.touches[0].clientY, active: false };
+    }, { passive: true });
+    document.addEventListener('touchmove', function(e) {
+      if (!pull) return;
+      var dy = e.touches[0].clientY - pull.y0;
+      if (dy <= 0 || window.scrollY > 0) { pull = null; return; }
+      pull.active = true;
+      var ind = ensurePullInd();
+      var h = Math.min(80, dy * 0.5);
+      ind.style.height = h + 'px';
+      ind.classList.toggle('ready', dy > 80);
+      ind.textContent = dy > 80 ? 'Release to refresh' : 'Pull to refresh';
+    }, { passive: true });
+    document.addEventListener('touchend', function(e) {
+      if (!pull || !pull.active) { pull = null; return; }
+      var dy = e.changedTouches[0].clientY - pull.y0;
+      var ind = ensurePullInd();
+      ind.style.height = '';
+      ind.classList.remove('ready');
+      if (dy > 80) {
+        if (navigator.vibrate) navigator.vibrate(10);
+        var btn = document.getElementById('poll-btn');
+        if (btn) btn.click();
+      }
+      pull = null;
+    }, { passive: true });
+  }
+</script>
+{% endblock %}

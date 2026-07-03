@@ -1,0 +1,19 @@
+<form hx-post="/settings/embeds" hx-target="#embeds-panel" hx-swap="innerHTML" class="models-form">
+  <div class="models-row">
+    <label for="embeds_enabled" style="display:flex;align-items:center;gap:8px;cursor:pointer">
+      <input type="checkbox" name="embeds_enabled" id="embeds_enabled" value="1"
+             {% if enabled %}checked{% endif %}>
+      Enable Twitter / X / Instagram embeds in the reader modal
+    </label>
+  </div>
+  <p class="hint" style="margin:6px 0 12px">
+    When on, standalone tweet/post URLs in articles render as the original card.
+    Loads <code>platform.twitter.com/widgets.js</code> and
+    <code>www.instagram.com/embed.js</code> from those third parties (their JS
+    only runs if a matching embed appears in an article you open).
+  </p>
+  <div class="models-actions">
+    <button type="submit">Save</button>
+    {% if saved %}<span class="models-saved">Saved.</span>{% endif %}
+  </div>
+</form>

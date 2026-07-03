@@ -1,0 +1,728 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #666;
+  --border: #e0e0e0;
+  --accent: #2563eb;
+  --like-bg: #f0fdf4;
+  --dislike-bg: #fef2f2;
+  --focus-bg: #f5f5f5;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111;
+    --fg: #f0f0f0;
+    --muted: #999;
+    --border: #3d3d3d;
+    --accent: #60a5fa;
+    --like-bg: #052e16;
+    --dislike-bg: #3b0a0a;
+    --focus-bg: #1c1c1c;
+  }
+}
+
+[data-theme="dark"] {
+  --bg: #111;
+  --fg: #f0f0f0;
+  --muted: #999;
+  --border: #3d3d3d;
+  --accent: #60a5fa;
+  --like-bg: #052e16;
+  --dislike-bg: #3b0a0a;
+  --focus-bg: #1c1c1c;
+}
+
+[data-theme="light"] {
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #666;
+  --border: #e0e0e0;
+  --accent: #2563eb;
+  --like-bg: #f0fdf4;
+  --dislike-bg: #fef2f2;
+  --focus-bg: #f5f5f5;
+}
+
+html {
+  /* Reserve scrollbar gutter at all times so opening the reader modal (which
+     position:fixes the body to lock background scroll) doesn't toggle the
+     vertical scrollbar and shift the page width. */
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+  /* Kill the mobile overscroll bounce so pulling down past the top doesn't
+     visually drag the whole page — our custom .pull-indicator handles it.
+     `-x: none` also stops horizontal rubber-band while a row is translating
+     under the swipe gesture. */
+  overscroll-behavior-y: contain;
+  overscroll-behavior-x: none;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 16px;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.5;
+}
+
+.site-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 10;
+  flex-wrap: wrap;
+}
+
+.site-title { font-weight: 700; flex-shrink: 0; }
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+.header-actions .search-input { max-width: 220px; }
+.header-actions button { font-size: 13px; padding: 4px 10px; }
+
+nav { display: flex; align-items: center; gap: 12px; flex-shrink: 0; margin-left: auto; }
+nav a { color: var(--accent); text-decoration: none; font-size: 14px; }
+
+.site-layout { display: flex; min-height: 100vh; }
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.sidebar-brand {
+  font-weight: 700;
+  font-size: 16px;
+  padding: 0 16px 12px;
+  color: var(--fg);
+  text-decoration: none;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-left: 0;
+}
+.sidebar-nav a {
+  padding: 6px 10px;
+  border-radius: 6px;
+  color: var(--fg);
+  text-decoration: none;
+  font-size: 14px;
+}
+.sidebar-nav a:hover { background: var(--focus-bg); }
+.sidebar-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 8px;
+  flex: 1;
+}
+.sidebar-feed {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--fg);
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+}
+.sidebar-feed:hover { background: var(--focus-bg); }
+.sidebar-feed.active { background: var(--focus-bg); font-weight: 600; }
+.sidebar-feed-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sidebar-feed-count {
+  font-size: 12px;
+  color: var(--muted);
+  background: var(--border);
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+.sidebar-feed.active .sidebar-feed-count { color: var(--fg); }
+
+.sidebar-group { display: flex; flex-direction: column; }
+.sidebar-group-header { display: flex; align-items: center; gap: 2px; }
+.sidebar-collapse {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 2px 4px;
+  width: 18px;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.sidebar-group.collapsed .sidebar-collapse { transform: rotate(-90deg); }
+.sidebar-group-title { flex: 1; font-weight: 600; }
+.sidebar-tag-label {
+  padding: 6px 10px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  font-weight: 600;
+}
+.sidebar-group-body { display: flex; flex-direction: column; gap: 2px; padding-left: 18px; }
+.sidebar-group.collapsed .sidebar-group-body { display: none; }
+.sidebar-feed-nested { font-size: 13px; }
+.sidebar-loading { padding: 12px 16px; color: var(--muted); font-size: 13px; }
+.sidebar-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.sidebar-footer .btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  color: var(--muted);
+}
+.sidebar-footer .btn-icon:hover { color: var(--fg); background: var(--focus-bg); }
+.sidebar-manage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 6px;
+  color: var(--muted);
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.sidebar-manage:hover { color: var(--fg); background: var(--focus-bg); }
+
+/* Mobile drawer */
+.drawer-toggle {
+  display: none;
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 30;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px;
+  color: var(--fg);
+  line-height: 0;
+}
+.drawer-scrim {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 18;
+}
+.drawer-scrim.visible { display: block; }
+
+@media (max-width: 720px) {
+  .drawer-toggle { display: inline-flex; }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 260px;
+    transform: translateX(-100%);
+    transition: transform 0.18s ease-out;
+    z-index: 25;
+    box-shadow: 2px 0 12px rgba(0, 0, 0, 0.2);
+  }
+  .sidebar.open { transform: translateX(0); }
+  /* Shift the brand right so the fixed hamburger toggle doesn't cover it
+     when the drawer is open. */
+  .sidebar .sidebar-brand { padding-left: 48px; }
+  .site-header { padding-left: 56px; }
+
+  /* Reader modal goes full-bleed on small screens — the desktop margins
+     just eat real estate on a phone. */
+  dialog#reader-modal {
+    width: 100vw;
+    height: 100vh;
+    max-width: 100vw;
+    max-height: 100vh;
+    border: none;
+    box-shadow: none;
+  }
+  .modal-nav { padding: 6px 12px; }
+  /* Override the coarse-pointer 40px min-height for the modal top bar so
+     Back / Open-in-browser don't dominate the screen on mobile. */
+  .modal-nav .btn-icon,
+  .modal-nav .btn-external {
+    min-height: 32px;
+    padding: 4px 8px;
+    font-size: 13px;
+  }
+  .modal-body { padding: 20px 16px; }
+}
+
+.site-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.site-main { padding: 16px; max-width: 720px; margin: 0 auto; width: 100%; box-sizing: border-box; }
+
+
+.search-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--fg);
+}
+.search-input:focus { outline: none; border-color: var(--accent); }
+
+.unread-count { font-size: 13px; color: var(--muted); white-space: nowrap; }
+
+.feed-filter {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 13px;
+  background: var(--bg);
+  color: var(--fg);
+  max-width: 180px;
+}
+
+.load-more {
+  text-align: center;
+  padding: 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.hint {
+  color: var(--muted);
+  font-size: 13px;
+  margin: 8px 0 12px;
+  max-width: 60ch;
+}
+
+.sort-toggle { display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.sort-btn { border: none; border-radius: 0; padding: 4px 10px; font-size: 13px; color: var(--muted); background: var(--bg); }
+.sort-btn:hover { color: var(--fg); border-color: transparent; }
+.sort-btn.active { background: var(--accent); color: #fff; }
+.sort-btn.active:hover { border-color: transparent; }
+
+/* Article list — flat rows */
+.article-row {
+  border-bottom: 1px solid var(--border);
+  padding: 10px 0;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  transition: background-color 0.25s ease, opacity 0.2s ease;
+  /* Horizontal swipe belongs to our like/dismiss handler; only let the browser
+     handle vertical pan on the row. Without this the page rubber-bands
+     horizontally on iOS while the row translates. */
+  touch-action: pan-y;
+}
+.article-row.leaving {
+  opacity: 0;
+  transform: translateX(20px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+.article-row.swiping {
+  transition: none;
+  will-change: transform;
+  user-select: none;
+}
+.article-row.swipe-like-active    { background: rgba(34, 197, 94, 0.18); }
+.article-row.swipe-dismiss-active { background: rgba(239, 68, 68, 0.18); }
+
+.pull-indicator {
+  height: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  color: var(--muted);
+  transition: height 0.15s ease;
+}
+.pull-indicator.ready { color: var(--accent); }
+.article-row:first-child { border-top: 1px solid var(--border); }
+.article-row.liked    { background: var(--like-bg); }
+.article-row.disliked { background: var(--dislike-bg); }
+.article-row.focused  { background: var(--focus-bg); }
+.article-row.read .article-title { color: var(--muted); font-weight: 500; }
+.article-row.read .article-summary { opacity: 0.7; }
+.article-row.read .article-thumb { opacity: 0.6; }
+.article-row.saved .btn-save { color: #f59e0b; }
+.article-row.hidden { opacity: 0.65; border-left: 3px solid var(--muted); padding-left: 8px; }
+.article-row.hidden .article-title { font-style: italic; }
+.hidden-reason {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 4px;
+  font-style: italic;
+}
+
+.article-row-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.score-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+  background: var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+  flex-shrink: 0;
+}
+
+.article-title {
+  font-weight: 600;
+  color: var(--fg);
+  font-size: 15px;
+  flex: 1;
+  line-height: 1.3;
+  cursor: pointer;
+}
+.article-row:hover .article-title { color: var(--accent); }
+
+.article-actions-inline {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  align-items: center;
+}
+
+.article-summary {
+  font-size: 13px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+
+.reading-time {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.article-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  width: 72px;
+}
+
+.article-thumb {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  object-position: center;
+  border-radius: 6px;
+}
+
+.article-content {
+  flex: 1;
+  min-width: 0;
+}
+
+
+/* Buttons */
+button {
+  cursor: pointer;
+  border: 1px solid var(--border);
+  background: var(--bg);
+  color: var(--fg);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 14px;
+}
+button:hover { border-color: var(--accent); }
+button:disabled { opacity: 0.4; cursor: default; }
+
+/* Reserve a 1px border on every interactive element in BOTH themes so layout
+   metrics (vertical and horizontal) stay identical when toggling dark mode.
+   Dark mode just colors the border in on hover; light mode leaves it transparent. */
+.btn-icon {
+  border: 1px solid transparent;
+  background: none;
+  padding: 3px 5px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--muted);
+  border-radius: 4px;
+  line-height: 1;
+}
+.btn-icon:hover { background: var(--border); color: var(--fg); border-color: transparent; }
+.btn-icon:disabled { opacity: 0.4; cursor: default; }
+.btn-icon:disabled:hover { background: none; }
+
+.sidebar-collapse, .sidebar-feed { border: 1px solid transparent; }
+
+/* Dark mode: surface the reserved borders so buttons stand apart from the
+   panel background. Padding/box-sizing are unchanged — these rules only
+   affect color, not layout. Sidebar feed/collapse buttons stay borderless
+   in every state so they don't read as buttons in the feed list. */
+[data-theme="dark"] .btn-icon:hover { border-color: var(--border); }
+[data-theme="dark"] button { border-color: var(--border); }
+[data-theme="dark"] .sort-toggle { border-color: var(--border); }
+[data-theme="dark"] .sidebar-feed,
+[data-theme="dark"] .sidebar-feed:hover,
+[data-theme="dark"] .sidebar-collapse,
+[data-theme="dark"] .sidebar-collapse:hover { border-color: transparent; }
+
+/* Touch devices: bump tap targets to ~44px per Apple/Material guidelines. */
+@media (pointer: coarse) {
+  button, .btn-icon, .btn-external, .sidebar-feed, .sidebar-collapse, .sidebar-manage {
+    min-height: 40px;
+  }
+  .btn-icon, .sidebar-collapse, .sidebar-manage { min-width: 40px; }
+  .article-actions-inline .btn-icon { padding: 8px 10px; }
+}
+
+.btn-read {
+  font-size: 12px;
+  color: var(--accent);
+  border-color: var(--accent);
+  padding: 2px 8px;
+}
+.btn-read:hover { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+
+.btn-external {
+  font-size: 12px;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  text-decoration: none;
+  display: inline-block;
+}
+.btn-external:hover { color: var(--fg); border-color: var(--fg); }
+
+/* Feed list */
+.feed-list { list-style: none; margin-top: 16px; }
+.feed-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.feed-item.paused { opacity: 0.6; }
+.feed-url { font-weight: 600; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.feed-meta { font-size: 12px; color: var(--muted); }
+.feed-error { color: #dc2626; font-style: italic; }
+.feed-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.feed-badge-paused { background: var(--border); color: var(--muted); }
+.feed-badge-warn { background: #fef3c7; color: #92400e; }
+[data-theme="dark"] .feed-badge-warn { background: #4a2e0e; color: #fbbf24; }
+.feed-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  flex-wrap: wrap;
+}
+.feed-threshold-form { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+.feed-threshold-form input {
+  width: 70px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--fg);
+}
+.btn-remove { background: var(--bg); color: var(--muted); }
+.btn-remove:hover { color: #dc2626; border-color: #dc2626; }
+
+.opml-form { display: flex; align-items: center; gap: 10px; margin-top: 8px; font-size: 13px; }
+.opml-status { font-size: 13px; color: var(--accent); margin-bottom: 8px; }
+
+.add-feed-form { display: flex; gap: 8px; }
+.add-feed-form input {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.prefs-form { display: flex; flex-direction: column; gap: 10px; margin-top: 12px; }
+.prefs-textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  font-size: 14px;
+  font-family: inherit;
+  background: var(--bg);
+  color: var(--fg);
+  resize: vertical;
+}
+.prefs-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.prefs-meta { font-size: 13px; color: var(--muted); margin-left: auto; }
+.prefs-saved { font-size: 13px; color: var(--accent); }
+.btn-secondary { background: var(--bg); }
+
+.status-panel { margin-top: 12px; }
+.status-grid {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  row-gap: 6px;
+  column-gap: 16px;
+  font-size: 14px;
+}
+.status-grid dt { color: var(--muted); text-transform: capitalize; }
+.status-grid dd { color: var(--fg); font-variant-numeric: tabular-nums; }
+.status-subhead { font-size: 14px; font-weight: 600; margin: 14px 0 8px; }
+
+.models-form { display: flex; flex-direction: column; gap: 12px; margin-top: 12px; }
+.models-row { display: flex; align-items: center; gap: 12px; }
+.models-row label { width: 130px; font-size: 14px; color: var(--muted); }
+.models-row select {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 14px;
+  background: var(--bg);
+  color: var(--fg);
+}
+.models-actions { display: flex; align-items: center; gap: 12px; }
+.models-saved { font-size: 13px; color: var(--accent); }
+.models-warn { font-size: 13px; color: var(--muted); }
+
+h2 { margin-bottom: 16px; font-size: 18px; }
+
+.loading, .empty { color: var(--muted); font-size: 14px; padding: 24px 0; text-align: center; }
+
+.htmx-indicator { display: none; color: var(--muted); font-size: 13px; }
+.htmx-request .htmx-indicator { display: inline; }
+/* Refresh button loading state: swaps the label for a spinning ring while the
+   /poll pipeline is running in the background. */
+.btn-loadable { position: relative; }
+.btn-loadable .btn-spinner {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.75;
+  animation: btn-spin 0.7s linear infinite;
+}
+.btn-loadable.is-loading .btn-label { visibility: hidden; }
+.btn-loadable.is-loading .btn-spinner { display: inline-block; }
+@keyframes btn-spin { to { transform: rotate(360deg); } }
+
+/* Reader modal — framed overlay */
+dialog {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0;
+  margin: auto;
+  width: min(960px, 92vw);
+  height: min(900px, 92vh);
+  max-width: 92vw;
+  max-height: 92vh;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+dialog[open] { display: flex; flex-direction: column; }
+
+.modal-nav {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 1;
+}
+
+.modal-nav-left { display: flex; align-items: center; gap: 8px; }
+.modal-nav-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+
+.modal-title {
+  font-weight: 700;
+  font-size: 20px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 600px;
+}
+
+.modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 20px;
+  width: 100%;
+  font-size: 16px;
+  line-height: 1.8;
+}
+.modal-body p { margin-bottom: 16px; }
+.modal-body p:last-child { margin-bottom: 0; }
+.modal-body ul { margin: 0 0 16px; padding-left: 24px; list-style: disc; }
+.modal-body ul:last-child { margin-bottom: 0; }
+.modal-body li { margin-bottom: 6px; }
+.modal-body li:last-child { margin-bottom: 0; }
+.modal-article-title { font-size: 32px; font-weight: 800; line-height: 1.2; margin-bottom: 20px; color: var(--fg); }
+.modal-description { font-size: 22px; line-height: 1.5; color: var(--fg); font-weight: 500; margin-bottom: 24px; }

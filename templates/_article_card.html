@@ -1,0 +1,54 @@
+<div class="article-row {{ article.status }}{% if article.read_at %} read{% endif %}{% if article.saved_at %} saved{% endif %}" id="card-{{ article.id }}"
+     data-article-id="{{ article.id }}"
+     data-url="{{ article.url }}"
+     data-title="{{ article.title | e }}">
+  <div class="article-left">
+    {% if article.thumbnail_url %}
+      <img class="article-thumb" src="{{ article.thumbnail_url }}" alt="" loading="lazy"
+           onerror="this.style.display='none'">
+    {% endif %}
+    {% if article.reading_time %}
+      <span class="reading-time">🕐 {{ article.reading_time }}</span>
+    {% endif %}
+    <a class="btn-external" href="{{ article.url }}" target="_blank" rel="noopener noreferrer" title="Open in browser (o)">
+      ↗ Open
+    </a>
+  </div>
+  <div class="article-content">
+    <div class="article-row-header">
+      {% if article.score is not none %}
+        <span class="score-badge" title="{{ article.score_reason or '' }}">
+          {{ "%.0f"|format(article.score * 100) }}%
+        </span>
+      {% endif %}
+      <span class="article-title">{{ article.title }}</span>
+      <div class="article-actions-inline">
+        <button
+          hx-post="/article/{{ article.id }}/save"
+          hx-target="#card-{{ article.id }}"
+          hx-swap="outerHTML"
+          class="btn-icon btn-save"
+          aria-pressed="{{ 'true' if article.saved_at else 'false' }}"
+          title="{{ 'Unsave' if article.saved_at else 'Save for later' }}">{{ '★' if article.saved_at else '☆' }}</button>
+        <button
+          hx-post="/vote/{{ article.id }}/1"
+          hx-target="#card-{{ article.id }}"
+          hx-swap="outerHTML"
+          {% if article.status == 'liked' %}disabled aria-pressed="true"{% endif %}
+          class="btn-icon btn-like" title="Like (l)">👍</button>
+        <button
+          hx-post="/vote/{{ article.id }}/-1"
+          hx-target="#card-{{ article.id }}"
+          hx-swap="outerHTML"
+          {% if article.status == 'disliked' %}disabled aria-pressed="true"{% endif %}
+          class="btn-icon btn-dislike" title="Dislike">👎</button>
+      </div>
+    </div>
+    {% if article.summary %}
+      <p class="article-summary">{{ article.summary }}</p>
+    {% endif %}
+    {% if article.status == 'hidden' and article.score_reason %}
+      <p class="hidden-reason" title="LLM reason for low score">Hidden: {{ article.score_reason }}</p>
+    {% endif %}
+  </div>
+</div>

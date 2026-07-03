@@ -1,0 +1,14 @@
+<form hx-post="/preferences" hx-target="#preferences-panel" hx-swap="innerHTML" class="prefs-form">
+  <textarea name="profile_text" rows="8" class="prefs-textarea"
+            placeholder="No profile yet. Vote on a few articles, then click Regenerate.">{{ profile_text }}</textarea>
+  <div class="prefs-actions">
+    <button type="submit">Save</button>
+    <button type="button"
+            hx-post="/preferences/regenerate"
+            hx-swap="none"
+            hx-confirm="Rebuild the profile from your recent votes? This calls the LLM."
+            class="btn-secondary">Regenerate from votes</button>
+    <span class="prefs-meta">{% if updated_at %}Updated {{ updated_at }}{% else %}Never updated{% endif %}</span>
+    {% if saved %}<span class="prefs-saved">Saved.</span>{% endif %}
+  </div>
+</form>

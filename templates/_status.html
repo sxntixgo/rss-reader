@@ -1,0 +1,14 @@
+{% set statuses = ['new', 'scored', 'hidden', 'summarized', 'liked', 'disliked', 'dismissed'] %}
+<div class="status-panel">
+  <dl class="status-grid">
+    <dt>Feeds</dt><dd>{{ feed_count }}</dd>
+    <dt>Last poll</dt><dd>{{ last_poll or '—' }}</dd>
+    <dt>Last pipeline run</dt><dd>{{ last_pipeline or '—' }}</dd>
+  </dl>
+  <h3 class="status-subhead">Articles by status</h3>
+  <dl class="status-grid">
+    {% for s in statuses %}
+      <dt>{{ s }}</dt><dd>{{ counts.get(s, 0) }}</dd>
+    {% endfor %}
+  </dl>
+</div>

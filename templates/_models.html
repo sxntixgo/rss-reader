@@ -1,0 +1,30 @@
+{% set options = installed if installed else [scoring_model, summary_model] | unique | list %}
+<form hx-post="/settings/models" hx-target="#models-panel" hx-swap="innerHTML" class="models-form">
+  <div class="models-row">
+    <label for="scoring_model">Scoring model</label>
+    <select name="scoring_model" id="scoring_model">
+      {% for m in options %}
+        <option value="{{ m }}" {% if m == scoring_model %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+      {% if scoring_model not in options %}
+        <option value="{{ scoring_model }}" selected>{{ scoring_model }} (not installed)</option>
+      {% endif %}
+    </select>
+  </div>
+  <div class="models-row">
+    <label for="summary_model">Summary model</label>
+    <select name="summary_model" id="summary_model">
+      {% for m in options %}
+        <option value="{{ m }}" {% if m == summary_model %}selected{% endif %}>{{ m }}</option>
+      {% endfor %}
+      {% if summary_model not in options %}
+        <option value="{{ summary_model }}" selected>{{ summary_model }} (not installed)</option>
+      {% endif %}
+    </select>
+  </div>
+  <div class="models-actions">
+    <button type="submit">Save</button>
+    {% if saved %}<span class="models-saved">Saved.</span>{% endif %}
+    {% if not installed %}<span class="models-warn">Could not reach Ollama — list unavailable.</span>{% endif %}
+  </div>
+</form>

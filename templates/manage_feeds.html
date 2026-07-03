@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Manage Feeds — Better Read{% endblock %}
+{% block content %}
+<h2>Manage Feeds</h2>
+<form hx-post="/feeds" hx-target="#feed-list" hx-swap="innerHTML" class="add-feed-form">
+  <input name="url" type="url" placeholder="https://example.com/rss" required>
+  <button type="submit">Add Feed</button>
+</form>
+
+<form hx-post="/feeds/opml"
+      hx-target="#feed-list"
+      hx-swap="innerHTML"
+      hx-encoding="multipart/form-data"
+      class="opml-form">
+  <input type="file" name="file" accept=".opml,.xml,text/x-opml,application/xml" required>
+  <button type="submit">Import OPML</button>
+  <a class="btn-external" href="/feeds/opml">↓ Export OPML</a>
+</form>
+
+<div id="feed-list"
+     hx-get="/feeds"
+     hx-trigger="load"
+     hx-swap="innerHTML">
+  <p class="loading">Loading feeds…</p>
+</div>
+{% endblock %}

@@ -1,0 +1,15 @@
+{% if articles %}
+  {% for article in articles %}
+    {% include "_article_card.html" %}
+  {% endfor %}
+  {% if next_qs %}
+    <div class="load-more"
+         hx-get="/articles?{{ next_qs }}"
+         hx-trigger="revealed"
+         hx-swap="outerHTML">
+      Loading more…
+    </div>
+  {% endif %}
+{% elif is_first_page %}
+  <p class="empty">No articles yet. Add feeds in <a href="/settings">Settings</a> and click Refresh.</p>
+{% endif %}

@@ -1,0 +1,28 @@
+{% if title %}
+  <h1 class="modal-article-title">{{ title }}</h1>
+{% endif %}
+{% if description %}
+  <p class="modal-description">{{ description }}</p>
+{% endif %}
+{% if blocks %}
+  {% for b in blocks %}
+    {% if b['type'] == 'ul' %}
+      <ul>
+        {% for item in b['items'] %}<li>{{ item }}</li>{% endfor %}
+      </ul>
+    {% elif b['type'] == 'embed' and b['platform'] == 'twitter' %}
+      <blockquote class="twitter-tweet" data-embed-platform="twitter">
+        <a href="{{ b['url'] }}">{{ b['url'] }}</a>
+      </blockquote>
+    {% elif b['type'] == 'embed' and b['platform'] == 'instagram' %}
+      <blockquote class="instagram-media" data-embed-platform="instagram"
+                  data-instgrm-permalink="{{ b['url'] }}" data-instgrm-version="14">
+        <a href="{{ b['url'] }}">{{ b['url'] }}</a>
+      </blockquote>
+    {% else %}
+      <p>{{ b['text'] }}</p>
+    {% endif %}
+  {% endfor %}
+{% elif not description %}
+  <p style="color:var(--muted)">Full content not available for this article.</p>
+{% endif %}
